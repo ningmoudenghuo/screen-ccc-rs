@@ -1,0 +1,19 @@
+{
+  "name": "screen-ccc-rs",
+  "version": "1.0.0",
+  "description": "screen-short-record",
+  "main": "index.js",
+  "scripts": {
+    "test": "no"
+  },
+  "repository": {
+    "type": "git",
+    "url": "yes"
+  },
+  "keywords": [
+    "screen-short",
+    "screen-record"
+  ],
+  "author": "ccc",
+  "license": "ISC"
+}
