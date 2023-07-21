@@ -57,6 +57,16 @@ class screenRs {
         this.toolDiv.style.left = '10px';
         this.toolDiv.style.top = '10px';
         //功能按钮
+        let shotBtn = document.createElement('button')
+        shotBtn.style.marginLeft = "10px"
+        let svg_shot = `<div style="display: flex;justify-content: space-between;align-items: center">
+        <svg t="1689901856063" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" fill="currentColor" p-id="1491" width="16" height="16"><path d="M715.98 634.01h80.07V308.02c0-21.61-7.94-40.35-23.83-56.24-15.89-15.89-34.63-23.83-56.24-23.83H389.99v80.07h325.99v325.99z m-407.96 81.97V64h-80.07v163.95H64v80.07h163.95v407.97c0 21.6 7.94 40.35 23.83 56.24 15.89 15.89 34.63 23.83 56.24 23.83h407.97V960h80.07V796.05H960v-80.07H308.02z" p-id="1492"></path></svg>
+        &nbsp;<span>裁剪</span>
+        </div>`
+        shotBtn.innerHTML = svg_shot
+        shotBtn.onclick = () => {
+            this.strokeShotRect()
+        }
         let penBtn = document.createElement('button')
         penBtn.style.marginLeft = "10px"
         let svg_pen = `<div style="display: flex;justify-content: space-between;align-items: center">
@@ -129,6 +139,7 @@ class screenRs {
             this.cur_doing = ''
         }
         this.toolShot = document.createElement('div')
+        this.toolShot.appendChild(shotBtn)
         this.toolShot.appendChild(penBtn)
         this.toolShot.appendChild(rectBtn)
         this.toolShot.appendChild(wordBtn)
@@ -160,7 +171,7 @@ class screenRs {
     }
     async shot() {
         this.cur_doing = 'shot'
-        this.toolShot.style.display='inline-block'
+        this.toolShot.style.display = 'inline-block'
         document.body.style.cursor = 'none'
         if (!this.displayStream) await this.getDisplayMedia()
         const video = document.createElement('video');
@@ -187,7 +198,6 @@ class screenRs {
             // ctx.fillRect(0, 0, canvas.width, canvas.height);
             video.pause();
             this.stop()
-            this.showBtn()
             this.showContainer()
         }, 500)
     }
@@ -285,21 +295,10 @@ class screenRs {
             that.ctx.strokeStyle = that.color; // 画笔的颜色
             that.ctx.lineWidth = 5; // 指定描边线的宽度
             that.dragging = true
-            // document.onmousemove = function (event) {
-            //     if (!that.dragging) return
-            //     // this.canvasHistory.length && that.ctx.putImageData(this.canvasHistory[this.canvasHistory.length - 1], 0, 0)
-            //     that.ctx.beginPath();
-            //     that.ctx.strokeRect(
-            //         postx.startX,
-            //         postx.startY,
-            //         event.offsetX - postx.startX,
-            //         event.offsetY - postx.startY
-            //     );
-            // };
         };
         this.canvas.onmousemove = function mouseMove(event) {
             if (!that.dragging) return
-            that.ctx.putImageData(that.canvasHistory[that.canvasHistory.length - 1], 0, 0);
+            that.ctx.putImageData(that.canvasHistory[that.canvasHistory.length - 1].data, 0, 0);
             that.ctx.beginPath();
             that.ctx.strokeRect(
                 postx.startX,
@@ -325,12 +324,6 @@ class screenRs {
             );
 
             that.ctx.closePath();
-            postx = {
-                startX: 0,
-                endX: 0,
-                startY: 0,
-                endY: 0,
-            };
         };
     }
     async strokeLine() {
@@ -367,12 +360,60 @@ class screenRs {
             this.onmousemove = null;
         };
     }
+    async strokeShotRect() {
+        await this.offlisten();
+        this.clear();
+        let postx = {
+            startX: 0,
+            endX: 0,
+            startY: 0,
+            endY: 0,
+        };
+        const that = this;
+        this.canvas.onmousedown = function mouseDownAction(e) {
+            postx.startX = e.offsetX;
+            postx.startY = e.offsetY;
+            that.addHistory();
+            // 设置线条样式为虚线
+            that.ctx.setLineDash([5, 3]); // 设置线条为5个像素实线，3个像素空白
+            that.ctx.strokeStyle = "#81d4fa"; // 画笔的颜色
+            that.ctx.lineWidth = 2; // 指定描边线的宽度
+            that.dragging = true
+        };
+        this.canvas.onmousemove = function mouseMove(event) {
+            if (!that.dragging) return
+            that.ctx.putImageData(that.canvasHistory[that.canvasHistory.length - 1].data, 0, 0);
+            that.ctx.beginPath();
+            that.ctx.strokeRect(
+                postx.startX,
+                postx.startY,
+                event.offsetX - postx.startX,
+                event.offsetY - postx.startY
+            );
+        }
+        this.canvas.onmouseup = function mouseUp(e) {
+            that.dragging = false
+            that.ctx.closePath();
+            let endX = e.offsetX - postx.startX;
+            let endY = e.offsetY - postx.startY;
+            that.ctx.putImageData(that.canvasHistory[that.canvasHistory.length - 1].data, 0, 0);
+            var data = that.ctx.getImageData(postx.startX, postx.startY, endX, endY);
+            that.ctx.clearRect(0, 0, that.canvas.width, that.canvas.height);
+            that.canvas.width = endX;
+            that.canvas.height = endY;
+            that.ctx.putImageData(data, 0, 0);
+        };
+    }
     async goBack() {
         await this.clear();
         await this.offlisten();
         if (this.canvasHistory.length) {
             let that = this;
-            let canvasPic = this.canvasHistory.pop()
+            let last = this.canvasHistory.pop()
+            let size = last.size
+            let canvasPic = last.data
+            that.canvas.width = size[0];
+            that.canvas.height = size[1];
             that.ctx.putImageData(canvasPic, 0, 0);
         } else {
             alert("不能再撤回了");
@@ -384,20 +425,19 @@ class screenRs {
     }
     addHistory() {
         this.canvasHistory.push(
-            // this.canvas.toDataURL("image/png")
-            this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height)
+            {
+                size: [this.canvas.width, this.canvas.height],
+                data: this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height)
+            }
         );
     }
     isMark() {
         // 有长度就是有标记
         return this.canvasHistory.length;
     }
-    showBtn() {
-
-    }
     async record() {
         this.cur_doing = 'record'
-        this.toolShot.style.display='none'
+        this.toolShot.style.display = 'none'
         if (!this.displayStream) await this.getDisplayMedia()
         this.mediaRecorder.start()
     }
@@ -405,7 +445,7 @@ class screenRs {
         if (!this.mediaRecorder) return
         this.stop()
         this.showContainer()
-        if(bool){
+        if (bool) {
             setTimeout(() => {
                 this.replay()
             }, 200)
